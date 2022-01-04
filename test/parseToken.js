@@ -1,38 +1,85 @@
-const TOKEN = process.env.TOKEN
+const parseToken = require('../lib/parse-token')
 
-function tokenFormat(token) {
-  const defToken = {
-    token: '',
-    name: '',
+test('未配置', () => {
+  expect(() => parseToken()).toThrow('请配置 TOKEN')
+})
+
+test('字符串格式', () => {
+  expect(parseToken('aaa')).toContainEqual({
+    token: 'aaa',
+    alias: '',
+    index: 1,
     tgUid: '',
-    qywxUid: ''
-  }
+    qywxUid: '',
+    barkKey: '',
+    larkWebhook: '',
+    qq: ''
+  })
+})
 
-  if (typeof token == 'string') {
-    token = { token }
-  }
+test('JSON 格式', () => {
+  expect(parseToken('{"token": "aaa"}')).toContainEqual({
+    token: 'aaa',
+    alias: '',
+    index: 1,
+    tgUid: '',
+    qywxUid: '',
+    barkKey: '',
+    larkWebhook: '',
+    qq: ''
+  })
+})
 
-  return Object.assign({}, defToken, token)
-}
+test('格式化 JSON', () => {
+  const token = `
+    {
+      "token": "aaa"
+    }
+  `
 
-function parseToken(token) {
-  const likeArray = /^\[.*\]$/.test(token)
-  const likeObject = /^\{.*\}$/.test(token)
-  let tokenList = []
+  expect(parseToken(token)).toContainEqual({
+    token: 'aaa',
+    alias: '',
+    index: 1,
+    tgUid: '',
+    qywxUid: '',
+    barkKey: '',
+    larkWebhook: '',
+    qq: ''
+  })
+})
 
-  if (!likeArray && !likeObject) {
-    return [tokenFormat(token)]
-  }
+test('多账户配置', () => {
+  expect(parseToken('["aaa", {"token": "bbb", "alias": "jeff"}]')).toEqual(
+    expect.arrayContaining([
+      {
+        token: 'aaa',
+        alias: '',
+        index: 1,
+        tgUid: '',
+        qywxUid: '',
+        barkKey: '',
+        larkWebhook: '',
+        qq: ''
+      },
+      {
+        token: 'bbb',
+        alias: 'jeff',
+        index: 2,
+        tgUid: '',
+        qywxUid: '',
+        barkKey: '',
+        larkWebhook: '',
+        qq: ''
+      }
+    ])
+  )
+})
 
-  try {
-    tokenList = tokenList.concat(JSON.parse(token))
-  } catch (e) {
-    throw new Error('JSON 格式有误' + e)
-  }
+test('JSON 语法错误', () => {
+  expect(() => parseToken('{token: "aaa"}')).toThrow('TOKEN 解析错误')
+})
 
-  return tokenList.map(tokenFormat)
-}
-
-const tokens = parseToken(TOKEN)
-
-console.log('tokens', tokens)
+test('多账户 JSON 语法错误', () => {
+  expect(() => parseToken('["aaa", {token: "bbb"}]')).toThrow('TOKEN 解析错误')
+})

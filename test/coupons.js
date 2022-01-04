@@ -1,11 +1,21 @@
-const { getRule } = require('../lib/coupons')
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0'
 
-async function main() {
-  const rule = await getRule()
+const parseToken = require('../lib/parse-token')
+const { getCoupons, ECODE } = require('../lib/coupons')
 
-  rule.forEach((item, index) => {
-    console.log(`${++index}. ${item}`)
+test('领取优惠券', async () => {
+  const tokens = parseToken(process.env.TOKEN)
+  const res = await getCoupons(tokens[0].token, {
+    // proxy: 'http://127.0.0.1:8887'
   })
-}
 
-main()
+  expect(res.code).toBe(ECODE.SUCC)
+})
+
+test('token 错误', async () => {
+  const res = await getCoupons('aaa', {
+    // proxy: 'http://127.0.0.1:8887'
+  })
+
+  expect(res.code).toBe(ECODE.AUTH)
+})
