@@ -1,48 +1,49 @@
-const fetch = require('../lib/fetch')
-const getPayload = require('../lib/payload')
+import { beforeAll, expect, test } from 'vitest'
+import { getTemplateData } from '../src/template.js'
+import ShadowGuard from '../src/shadow/index.js'
+import gundam from '../src/coupons/gundam.js'
+import wxfwh from '../src/coupons/wxfwh.js'
+import { mainActConf, wxfwhActConfs } from '../src/coupons/const.js'
+import { createMTCookie, parseToken } from '../src/user.js'
 
-const GUNDAM_ID = '2KAWnD'
+const guard = new ShadowGuard()
+const tokens = parseToken(process.env.TOKEN)
+const cookie = createMTCookie(tokens[0].token)
 
-async function getTemplateData() {
-  const text = await fetch(
-    `https://market.waimai.meituan.com/api/template/get?env=current&el_biz=waimai&el_page=gundam.loader&gundam_id=${GUNDAM_ID}`
-  ).then((rep) => rep.text())
-  const matchGlobal = text.match(/globalData: ({.+})/)
-  const matchAppJs = text.match(/https:\/\/[./_-\w]+app\.js(?=")/g)
+beforeAll(() => guard.init(gundam.getActUrl(mainActConf.gid)))
 
-  try {
-    const globalData = JSON.parse(matchGlobal[1])
+test('Main Payload', async () => {
+  const tmplData = await getTemplateData(cookie, mainActConf.gid, guard)
+  const payload = await gundam.getPayload(tmplData, guard)
 
-    return {
-      gundamId: globalData.gdId,
-      appJs: matchAppJs[0]
-    }
-  } catch (e) {
-    throw new Error(`活动配置数据获取失败: ${e}`)
-  }
-}
-
-test('获取模板数据', () => {
-  return getTemplateData().then((res) =>
-    expect(res).toMatchObject({
-      gundamId: expect.anything(),
-      appJs: expect.stringMatching(/app.js$/)
-    })
-  )
+  return expect(payload).toMatchObject({
+    actualLatitude: 0,
+    actualLongitude: 0,
+    app: -1,
+    platform: 3,
+    couponConfigIdOrderCommaString: expect.any(String),
+    couponAllConfigIdOrderString: expect.any(String),
+    gundamId: tmplData.gdId,
+    needTj: expect.any(Boolean),
+    instanceId: expect.any(String),
+    h5Fingerprint: expect.any(String)
+  })
 })
 
-test('获取 payload', async () => {
-  const { gundamId, appJs } = await getTemplateData()
+// test('Wxfwh Payload', async () => {
+//   const tmplData = await getTemplateData(cookie, wxfwhActConfs[0].gid, guard)
+//   const payload = await wxfwh.getPayload(cookie, tmplData, guard)
 
-  return getPayload(gundamId, appJs).then((res) =>
-    expect(res).toMatchObject({
-      actualLatitude: '',
-      actualLongitude: '',
-      couponConfigIdOrderCommaString: expect.any(String),
-      defaultGrabKey: expect.any(String),
-      grabKey: expect.any(String),
-      gundamId: gundamId,
-      needTj: expect.any(Boolean)
-    })
-  )
-})
+//   return expect(payload).toMatchObject({
+//     ctype: 'wm_wxapp',
+//     fpPlatform: 13,
+//     wxOpenId: '',
+//     appVersion: '',
+//     gdId: tmplData.gdId,
+//     pageId: tmplData.pageId,
+//     tabs: expect.any(Array),
+//     activityViewId: expect.any(String),
+//     instanceId: expect.any(String),
+//     mtFingerprint: expect.any(String)
+//   })
+// })
